@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Usage: gh stack-tree [root-branch]
+# root-branch を根元にした stacked PR の親子関係をツリー表示する。
+# 省略時は今いるブランチを根元にする。
+set -euo pipefail
+
+root="${1:-$(git branch --show-current)}"
+
+gh pr list --state all --limit 300 \
+  --json number,title,headRefName,baseRefName,isDraft,author,reviewDecision,state,mergedAt |
+  jq -r --arg root "$root" '
+    map(select(.state != "CLOSED")) as $all
+    | def walk($base; $indent):
+        ($all | map(select(.baseRefName == $base)) | sort_by(.number)) as $kids
+        | range(0; $kids | length) as $i
+        | $kids[$i] as $p
+        | (if $i == ($kids | length) - 1 then ["└─ ", "   "] else ["├─ ", "│  "] end) as $br
+        | ($indent + $br[0]
+            + (if $p.state == "MERGED" then "✓ " else "  " end)
+            + "#\($p.number) \($p.title[0:36])  [\($p.author.login)"
+            + (if $p.state == "MERGED" then " / merged \($p.mergedAt[5:10])" elif $p.isDraft then " / Draft" else "" end)
+            + (if $p.state == "OPEN" and $p.reviewDecision == "APPROVED" then " / approved" else "" end)
+            + "]"),
+          walk($p.headRefName; $indent + $br[1]);
+    $root, walk($root; "")'
