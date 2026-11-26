@@ -1,4 +1,4 @@
-## gh-stack-tree
+## gh stack-tree
 
 指定したブランチを根元にして、その上に積まれた PR（stacked PR）の親子関係をツリーで表示する gh 拡張です。
 
